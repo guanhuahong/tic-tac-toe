@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import { nextTick, ref } from 'vue';
+import Card from '../components/Card.vue'
+import { sleep } from '../utils/sleep';
 
 type CardStatus = ''|'x'|'o'
 
@@ -9,6 +11,7 @@ const stopGame = () => gameStart.value = false
 const startGame = () => gameStart.value = true
 const curStatus = ref(true)
 const step = ref(0)
+const winLine = ref('')
 const init = () => {
     startGame()
     cards.value = [
@@ -24,6 +27,9 @@ init()
 
 const clickHandle = (index: number) => {
     if (gameStart.value !== true) return;
+    if (step.value > 8) {
+        return;
+    }
     // 防止重复按同一个位置
     if (cards.value[index] !== '') return;
     cards.value = [ 
@@ -36,104 +42,44 @@ const clickHandle = (index: number) => {
     step.value = step.value + 1
 }
 
-const wins = [
-    [
-        1,1,1,
-        0,0,0,
-        0,0,0
-    ],
-    [
-        1,0,0,
-        0,1,0,
-        0,0,1
-    ],
-    [
-        1,0,0,
-        1,0,0,
-        1,0,0,
-    ],
-    [
-        0,1,0,
-        0,1,0,
-        0,1,0
-    ],
-    [
-        0,0,1,
-        0,1,0,
-        1,0,0
-    ],
-    [
-        0,0,1,
-        0,0,1,
-        0,0,1
-    ],
-    [
-        0,0,0,
-        1,1,1,
-        0,0,0
-    ],
-    [
-        0,0,0,
-        0,0,0,
-        1,1,1
-    ]
+const winMap = [
+    [0,1,2], // -
+    [0,4,8],
+    [0,3,6], // I
+    [1,4,7], // I
+    [2,4,6],
+    [2,5,8], // I
+    [3,4,5], // -
+    [6,7,8] // -
 ]
 
 const check = () => {
-    console.log(cards.value.slice(0,3), '\n', cards.value.slice(3,6), '\n', cards.value.slice(6,9))
-    let winCards: string[] = []
-    for (let i = 0; i < wins.length; i++) {
-        const win = wins[i];
-        for (let j = 0; j < win.length; j++) {
-            const target = win[j];
-            if (target === 1) {
-                const value: CardStatus = cards.value[j]
-                if (value === '') {
-                    winCards = []    
-                    break;
-                }
-                if (winCards.length === 0) {
-                    winCards = [value]
-                    continue;
-                }
-                if (value != winCards[0]) {
-                    winCards = []
-                    break;
-                }
-                winCards = [...winCards, value]
-                if (winCards.length ===  3) {
-                    console.log(j, winCards, value)
-                    stopGame()
-                    setTimeout(() => showWin(value), 500)
-                    return
-                }
-            }
-            
+    for (let i = 0; i < winMap.length; i++) {
+        const win = winMap[i];
+        const [l, c, r] = [cards.value[win[0]], cards.value[win[1]], cards.value[win[2]]]
+
+        if (l !== '' && l === c && l === r) {
+            stopGame()
+            showWin(l, i)
         }
-        winCards = []
     }
 }
 
-const showWin = (t: CardStatus) => {
-    switch(t) {
-        case '': return;
-        case 'x':
-            alert("Winner is 1P")
-            break
-        case 'o':
-            alert("Winner is 2P")
-            break
-    }
-    init()
+const showWin = async (t: CardStatus, winIndex: number) => {
+    if (t === '') return;
+    winLine.value = 'win-line-' + (winIndex + 1)
+    await sleep(500)
+    alert("Winner is " + (t === 'x' ? '1P' : '2P'))
+
 }
 
 </script>
 
 <template>
     <div>
-        <div class="box">
+        <div class="box" :class="winLine">
             <template v-for="(item,index) in cards" v-key="index">
-                <span class="card" :class="{['card-'+item]: item}"  @click="clickHandle(index)"></span>
+                <Card :status="item" :index="index" @click="clickHandle" />
             </template>
             
         </div>
@@ -142,61 +88,77 @@ const showWin = (t: CardStatus) => {
 
 <style scoped>
     .box {
+        position: relative;
         display: flex;
         background-color: #fff;
         width: 300px;
         height: 300px;
         flex-wrap: wrap;
+        border: 1px solid #999;
     }
 
-    .card {
-        display: block;
-        width: 100px;
-        height: 100px;
-        box-sizing: border-box;
-        font-size: 30px;
-        text-align: center;
-        position: relative;
-    }
-
-    .card-o::before,
-    .card-x::before,
-    .card-x::after {
+    .win-line-1::before,
+    .win-line-2::before,
+    .win-line-3::before,
+    .win-line-4::before,
+    .win-line-5::before,
+    .win-line-6::before,
+    .win-line-7::before,
+    .win-line-8::before {
         content: "";
         position: absolute;
         display: block;
-        top: 50%;
-        left: 50%;
-        transform: translate3d(-50%, 0, 0) rotate(45deg);
-        height: 0;
-        font-size: 0;
         line-height: 0;
-        width: 60px;
-        border-top: 1px solid red;
+        font-size: 0;
+        z-index: 9999;
     }
-    .card-x::before {
+
+    .win-line-1::before,
+    .win-line-7::before,
+    .win-line-8::before {
+        width: 100%;
+        height: 0;
+        border-top: 1px solid green;
+        top: 50px;
+    }
+
+    .win-line-7::before {
+        top: 150px;
+    }
+
+    .win-line-8::before {
+        top: 250px;
+    }
+
+    .win-line-2::before,
+    .win-line-3::before,
+    .win-line-5::before {
+        width: 0;
+        height: 300px;
+        top: 0;
+        left: 50px;
+        border-left: 1px solid green;
+    }
+
+    .win-line-3::before {
+        left: 150px;
+    }
+
+    .win-line-5::before {
+        left: 250px;
+    }
+
+    .win-line-2::before,
+    .win-line-5::before {
+        width: 424.264px;
+        height: 0;
+        left: 150px;
+        top: 150px;
+        border-top: 1px solid green;
+        transform: translate3d(-50%, 0, 0) rotate(45deg);
+    }
+
+    .win-line-5::before {
         transform: translate3d(-50%, 0, 0) rotate(-45deg);
-    }
-
-    .card-o::before {
-        width: 60px;
-        height: 60px;
-        border-radius: 30px;
-        border: 1px solid blue;
-        transform: translate3d(-50%, -50%, 0);
-    }
-
-    .card:nth-child(3n+2),
-    .card:nth-child(3n+1) {
-        border-right: 1px solid #999;
-    }
-
-    .card:nth-child(1),
-    .card:nth-child(2),
-    .card:nth-child(3),
-    .card:nth-child(4),
-    .card:nth-child(5),
-    .card:nth-child(6) {
-        border-bottom: 1px solid #999;
     }
 </style>
