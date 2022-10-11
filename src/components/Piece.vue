@@ -19,9 +19,7 @@
 </script>
 
 <template>
-
     <span class="card" :class="{['card-'+props.status]: props.status}"  @click="clickHandle"></span>
-
 </template>
 
 <style scoped>
